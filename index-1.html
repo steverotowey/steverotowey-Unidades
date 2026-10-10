@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Treino de conversão de unidades</title>
+<style>
+  :root {
+    --paper: #fbfcff;
+    --grid: rgba(52, 84, 209, 0.11);
+    --ink: #2340c4;
+    --ink-soft: #5f74d6;
+    --text: #172033;
+    --margin: #e0575b;
+    --ok: #17794a;
+    --ok-bg: #e4f5ec;
+    --bad: #b3261e;
+    --bad-bg: #fbe9e7;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    min-height: 100vh;
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: var(--paper);
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  body::before {
+    content: "";
+    position: fixed; top: 0; bottom: 0; left: 30px;
+    width: 2px; background: var(--margin); opacity: .55;
+  }
+  main { max-width: 520px; margin: 0 auto; padding: 18px 16px 40px 46px; }
+
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  h1 { font-family: Georgia, "Times New Roman", serif; font-size: 22px; margin: 0; color: var(--ink); font-weight: 700; }
+  .score { font-size: 14px; text-align: right; line-height: 1.35; }
+  .score b { font-size: 18px; color: var(--ink); }
+
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding: 14px 0 6px; margin-right: -16px; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: none; border: 1.5px solid var(--ink); background: var(--paper); color: var(--ink);
+    font: inherit; font-size: 14px; padding: 7px 13px; border-radius: 999px; cursor: pointer;
+  }
+  .chip[aria-pressed="true"] { background: var(--ink); color: #fff; }
+
+  .card { background: #fff; border: 2px solid var(--ink); border-radius: 4px 14px 4px 14px; padding: 22px 18px 20px; margin-top: 14px; }
+  .tag { font-size: 13px; color: var(--ink-soft); margin-bottom: 4px; min-height: 18px; }
+  .q { font-family: Georgia, "Times New Roman", serif; font-size: 30px; line-height: 1.25; margin: 6px 0 18px; overflow-wrap: anywhere; }
+  .q small { display: block; font-size: 16px; margin-top: 8px; color: #44506b; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; }
+
+  .row { display: flex; align-items: center; gap: 10px; }
+  .row .eq { font-family: Georgia, serif; font-size: 26px; color: var(--ink); }
+  input[type="text"] {
+    flex: 1; min-width: 0; font: inherit; font-size: 24px; padding: 10px 12px;
+    border: 2px solid var(--ink-soft); border-radius: 6px; background: #fff; color: var(--text);
+  }
+  input[type="text"]:disabled { background: #f2f4fb; }
+  .unit { font-family: Georgia, serif; font-size: 22px; color: var(--ink); white-space: nowrap; }
+
+  .actions { display: flex; gap: 10px; margin-top: 16px; }
+  button.main, button.ghost { font: inherit; font-size: 17px; border-radius: 8px; padding: 12px 16px; cursor: pointer; }
+  button.main { flex: 1; background: var(--ink); color: #fff; border: 2px solid var(--ink); font-weight: 600; }
+  button.ghost { background: transparent; color: var(--ink); border: 2px solid var(--ink-soft); }
+  button:focus-visible, input:focus-visible { outline: 3px solid #f4b400; outline-offset: 2px; }
+
+  .hint { margin-top: 14px; padding: 10px 12px; background: #eef1ff; border-left: 4px solid var(--ink-soft); font-size: 15px; line-height: 1.45; }
+  .fb { margin-top: 16px; padding: 12px 14px; border-radius: 8px; font-size: 16px; line-height: 1.5; }
+  .fb.ok { background: var(--ok-bg); border-left: 5px solid var(--ok); }
+  .fb.bad { background: var(--bad-bg); border-left: 5px solid var(--bad); }
+  .fb strong { display: block; font-size: 18px; margin-bottom: 4px; }
+  .fb .conta { font-family: Georgia, serif; }
+  .hidden { display: none; }
+
+  .stats { margin-top: 18px; font-size: 13px; color: #44506b; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+  .stats button { font: inherit; font-size: 13px; background: none; border: none; color: var(--ink); text-decoration: underline; padding: 0; cursor: pointer; }
+  .tip { margin-top: 18px; font-size: 13px; color: #44506b; line-height: 1.5; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Treino de unidades</h1>
+    <div class="score"><b id="score">0/0</b> acertos<br>sequência <b id="streak">0</b></div>
+  </header>
+
+  <div class="chips" id="chips" role="group" aria-label="Assunto"></div>
+
+  <section class="card" aria-live="polite">
+    <div class="tag" id="tag"></div>
+    <div class="q" id="q"></div>
+    <div class="row">
+      <span class="eq">=</span>
+      <input type="text" id="ans" inputmode="decimal" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Sua resposta">
+      <span class="unit" id="unit"></span>
+    </div>
+    <div class="hint hidden" id="hint"></div>
+    <div class="fb hidden" id="fb"></div>
+    <div class="actions">
+      <button class="ghost" id="hintBtn" type="button">Dica</button>
+      <button class="main" id="go" type="button">Conferir</button>
+    </div>
+  </section>
+
+  <div class="stats" id="stats"></div>
+  <p class="tip">Digite com vírgula ou ponto (0,25 ou 0.25). Para 1.000 escreva 1000 ou 1.000. Os que você erra voltam depois de algumas perguntas.</p>
+</main>
+
+<script>
+// ---------- utilidades ----------
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const clean = x => Number(Number(x).toPrecision(12));
+function fmt(x) {
+  x = clean(x);
+  let s = String(x);
+  if (s.includes('e')) s = x.toFixed(10).replace(/0+$/, '').replace(/\.$/, '');
+  let [i, d] = s.split('.');
+  i = i.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return d ? i + ',' + d : i;
+}
+function isNice(x) {
+  x = clean(x);
+  if (!isFinite(x) || x <= 0) return false;
+  if (x < 1e-4 || x > 1e8) return false;
+  const s = String(x);
+  if (s.includes('e')) return false;
+  return ((s.split('.')[1] || '').length) <= 5;
+}
+function parse(str) {
+  let s = str.trim().replace(/\s/g, '');
+  if (!s) return NaN;
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  else if (/^[1-9]\d{0,2}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
+  return /^-?\d*\.?\d+(e-?\d+)?$/i.test(s) ? Number(s) : NaN;
+}
+
+// ---------- tabelas de unidades (fator para a unidade base) ----------
+const MASS = { 'mg': 1e-3, 'g': 1, 'kg': 1e3 };
+const VOL = { 'mL': 1e-3, 'cm³': 1e-3, 'L': 1, 'dm³': 1, 'm³': 1e3 };
+const MOLU = { 'mmol': 1e-3, 'mol': 1 };
+const DENS = { 'g/cm³': 1, 'g/mL': 1, 'kg/L': 1, 'g/L': 1e-3, 'kg/m³': 1e-3 };
+
+function convert(cat, table, valuesFor, opts = {}) {
+  const keys = Object.keys(table);
+  const a = pick(keys);
+  let b = pick(keys);
+  while (b === a) b = pick(keys);
+  const scale = opts.density ? 1 : pick([1, 1, 10, 0.1, 100, 0.01]);
+  const v = clean(pick(valuesFor(a)) * scale);
+  const f = table[a] / table[b];
+  const ans = v * f;
+  const suf = opts.suffix && Math.random() < 0.3 ? opts.suffix : '';
+  let hint, op;
+  if (clean(f) === 1) {
+    hint = `1 ${a} = 1 ${b}. O número não muda.`;
+    op = 'o número não muda';
+  } else if (opts.density) {
+    op = f > 1 ? `× ${fmt(f)}` : `÷ ${fmt(1 / f)}`;
+    hint = `g/cm³, g/mL e kg/L são o mesmo número. g/L e kg/m³ valem 1.000 vezes mais ou menos: de ${a} para ${b}, o número fica ${op}.`;
+  } else if (f > 1) {
+    op = `× ${fmt(f)}`;
+    hint = `${b} é a unidade menor, então o número cresce. 1 ${a} = ${fmt(f)} ${b}.`;
+  } else {
+    op = `÷ ${fmt(1 / f)}`;
+    hint = `${b} é a unidade maior, então o número diminui. 1 ${b} = ${fmt(1 / f)} ${a}.`;
+  }
+  return {
+    cat, ans, unit: b + suf,
+    q: `${fmt(v)} ${a}${suf} → ${b}${suf}`,
+    hint, why: `${fmt(v)} ${a} ${op} = ${fmt(ans)} ${b}`
+  };
+}
+
+// ---------- geradores ----------
+const genMassa = () => convert('Massa', MASS, () => [0.25, 0.5, 2, 8, 12, 16, 46, 250, 342, 1500, 40000, 0.8, 92], { suffix: '/mol' });
+const genVolume = () => convert('Volume', VOL, () => [0.3, 0.05, 0.5, 1, 2, 5.6, 36, 50, 150, 800, 2500]);
+const genDens = () => convert('Densidade', DENS, a => a === 'kg/m³' ? [800, 1000, 1200, 13600] : [0.8, 1, 0.79, 2.7, 13.6], { density: true });
+
+const SUBST = [['H₂O', 18], ['etanol', 46], ['CO₂', 44], ['O₂', 32], ['NaCl', 58.5], ['sacarose', 342], ['SiH₄', 32], ['Si₂H₆', 62]];
+function genMol() {
+  const t = pick(['mmol', 'massa', 'massa2', 'cntp', 'cntp2', 'mol23']);
+  if (t === 'mmol') return convert('Mol', MOLU, () => [0.04, 0.25, 0.5, 2, 3, 500, 1500]);
+  if (t === 'massa' || t === 'massa2') {
+    const [nome, M] = pick(SUBST);
+    const n = pick([0.1, 0.25, 0.5, 1, 1.5, 2, 3, 4]);
+    const g = n * M;
+    if (t === 'massa') return {
+      cat: 'Mol', ans: g, unit: 'g',
+      q: `${fmt(n)} mol de ${nome} → g`, small: `massa molar = ${fmt(M)} g/mol`,
+      hint: `Massa = mols × massa molar. Cada mol pesa ${fmt(M)} g.`,
+      why: `${fmt(n)} mol × ${fmt(M)} g/mol = ${fmt(g)} g`
+    };
+    return {
+      cat: 'Mol', ans: n, unit: 'mol',
+      q: `${fmt(g)} g de ${nome} → mol`, small: `massa molar = ${fmt(M)} g/mol`,
+      hint: `Mols = massa ÷ massa molar. Quantas vezes ${fmt(M)} g cabem em ${fmt(g)} g?`,
+      why: `${fmt(g)} g ÷ ${fmt(M)} g/mol = ${fmt(n)} mol`
+    };
+  }
+  if (t === 'cntp') {
+    const n = pick([0.25, 0.5, 1, 2, 3, 0.1]);
+    return {
+      cat: 'Mol', ans: n * 22.4, unit: 'L',
+      q: `${fmt(n)} mol de gás → L`, small: 'CNTP: 22,4 L por mol',
+      hint: '1 mol de gás na CNTP ocupa 22,4 L. Multiplique os mols por 22,4.',
+      why: `${fmt(n)} mol × 22,4 L/mol = ${fmt(n * 22.4)} L`
+    };
+  }
+  if (t === 'cntp2') {
+    const n = pick([0.25, 0.5, 1, 2, 3, 0.1]);
+    const L = n * 22.4;
+    return {
+      cat: 'Mol', ans: n, unit: 'mol',
+      q: `${fmt(L)} L de gás → mol`, small: 'CNTP: 22,4 L por mol',
+      hint: 'Divida o volume por 22,4 L/mol.',
+      why: `${fmt(L)} L ÷ 22,4 L/mol = ${fmt(n)} mol`
+    };
+  }
+  const k = pick([1.5, 3, 6, 12, 18, 30]);
+  if (Math.random() < 0.5) return {
+    cat: 'Mol', ans: k / 6, unit: 'mol',
+    q: `${fmt(k)} · 10²³ moléculas → mol`, small: '1 mol = 6 · 10²³ moléculas',
+    hint: 'Divida o número na frente do 10²³ por 6.',
+    why: `${fmt(k)} · 10²³ ÷ (6 · 10²³) = ${fmt(k / 6)} mol`
+  };
+  const n = pick([0.5, 1, 2, 3, 5]);
+  return {
+    cat: 'Mol', ans: n * 6, unit: '· 10²³ moléculas',
+    q: `${fmt(n)} mol → moléculas`, small: 'Dê a resposta como número × 10²³',
+    hint: '1 mol = 6 · 10²³ moléculas. Multiplique o número de mols por 6.',
+    why: `${fmt(n)} mol × 6 · 10²³ = ${fmt(n * 6)} · 10²³ moléculas`
+  };
+}
+
+const LIQ = [['etanol', 0.8], ['água', 1], ['gasolina', 0.75], ['mercúrio', 13.6], ['óleo', 0.9]];
+function genMix() {
+  const t = pick(['vd', 'md', 'kgmol', 'mlmol', 'molkg', 'mgmol']);
+  if (t === 'vd') {
+    const [nome, d] = pick(LIQ);
+    const V = pick([0.25, 0.5, 2, 5, 50]);
+    return {
+      cat: 'Misturadas', ans: V * 1000 * d, unit: 'g',
+      q: `${fmt(V)} L de ${nome} → g`, small: `densidade = ${fmt(d)} g/cm³`,
+      hint: 'Passe litros para cm³ (1 L = 1.000 cm³) e depois multiplique pela densidade.',
+      why: `${fmt(V)} L = ${fmt(V * 1000)} cm³; ${fmt(V * 1000)} cm³ × ${fmt(d)} g/cm³ = ${fmt(V * 1000 * d)} g`
+    };
+  }
+  if (t === 'md') {
+    const [nome, d] = pick(LIQ);
+    const V = pick([0.25, 0.5, 2, 5, 50]);
+    const kg = V * d;
+    return {
+      cat: 'Misturadas', ans: V, unit: 'L',
+      q: `${fmt(kg)} kg de ${nome} → L`, small: `densidade = ${fmt(d)} g/cm³ (= ${fmt(d)} kg/L)`,
+      hint: 'g/cm³ e kg/L são o mesmo número. Então volume em L = kg ÷ densidade.',
+      why: `${fmt(kg)} kg ÷ ${fmt(d)} kg/L = ${fmt(V)} L`
+    };
+  }
+  const [nome, M] = pick(SUBST.slice(0, 6));
+  const n = pick([0.1, 0.25, 0.5, 1, 2, 4]);
+  const g = n * M;
+  if (t === 'kgmol') return {
+    cat: 'Misturadas', ans: n, unit: 'mol',
+    q: `${fmt(g / 1000)} kg de ${nome} → mol`, small: `massa molar = ${fmt(M)} g/mol`,
+    hint: 'Primeiro kg → g (×1.000). Depois divida pela massa molar.',
+    why: `${fmt(g / 1000)} kg = ${fmt(g)} g; ${fmt(g)} g ÷ ${fmt(M)} g/mol = ${fmt(n)} mol`
+  };
+  if (t === 'mgmol') return {
+    cat: 'Misturadas', ans: n, unit: 'mol',
+    q: `${fmt(g * 1000)} mg de ${nome} → mol`, small: `massa molar = ${fmt(M)} g/mol`,
+    hint: 'Primeiro mg → g (÷1.000). Depois divida pela massa molar.',
+    why: `${fmt(g * 1000)} mg = ${fmt(g)} g; ${fmt(g)} g ÷ ${fmt(M)} g/mol = ${fmt(n)} mol`
+  };
+  if (t === 'mlmol') {
+    const mL = pick([9, 18, 36, 54, 90]);
+    return {
+      cat: 'Misturadas', ans: mL / 18, unit: 'mol',
+      q: `${fmt(mL)} mL de água → mol`, small: 'densidade = 1 g/mL; massa molar = 18 g/mol',
+      hint: 'Com d = 1 g/mL, o número de mL é o número de gramas. Depois divida por 18.',
+      why: `${fmt(mL)} mL = ${fmt(mL)} g; ${fmt(mL)} g ÷ 18 g/mol = ${fmt(mL / 18)} mol`
+    };
+  }
+  return {
+    cat: 'Misturadas', ans: n * M / 1000, unit: 'kg',
+    q: `${fmt(n)} mol de ${nome} → kg`, small: `massa molar = ${fmt(M)} g/mol`,
+    hint: 'Primeiro mol → g (× massa molar). Depois g → kg (÷1.000).',
+    why: `${fmt(n)} mol × ${fmt(M)} g/mol = ${fmt(g)} g = ${fmt(g / 1000)} kg`
+  };
+}
+
+const GENS = { 'Massa': genMassa, 'Volume': genVolume, 'Mol': genMol, 'Densidade': genDens, 'Misturadas': genMix };
+const seen = new Set();
+function makeQuestion(cat) {
+  const c = cat === 'Tudo' ? pick(Object.keys(GENS)) : cat;
+  for (let i = 0; i < 300; i++) {
+    const q = GENS[c]();
+    const key = q.q + '|' + (q.small || '');
+    if (isNice(q.ans) && !seen.has(key)) { seen.add(key); return q; }
+  }
+  // esgotou as combinações novas: recomeça a lista
+  seen.clear();
+  for (let i = 0; i < 200; i++) {
+    const q = GENS[c]();
+    if (isNice(q.ans)) { seen.add(q.q + '|' + (q.small || '')); return q; }
+  }
+  return GENS[c]();
+}
+
+// ---------- estado ----------
+const CATS = ['Tudo', 'Massa', 'Volume', 'Mol', 'Densidade', 'Misturadas'];
+let cat = 'Tudo', cur = null, answered = false;
+let right = 0, total = 0, streak = 0, count = 0;
+const stats = {}; CATS.slice(1).forEach(c => stats[c] = [0, 0]);
+let queue = []; // perguntas erradas para repetir
+
+const $ = id => document.getElementById(id);
+const el = { chips: $('chips'), tag: $('tag'), q: $('q'), ans: $('ans'), unit: $('unit'), hint: $('hint'), fb: $('fb'), go: $('go'), hintBtn: $('hintBtn'), score: $('score'), streak: $('streak'), stats: $('stats') };
+
+function renderChips() {
+  el.chips.innerHTML = '';
+  CATS.forEach(c => {
+    const b = document.createElement('button');
+    b.className = 'chip'; b.type = 'button'; b.textContent = c;
+    b.setAttribute('aria-pressed', String(c === cat));
+    b.onclick = () => { cat = c; queue = []; renderChips(); next(); };
+    el.chips.appendChild(b);
+  });
+}
+function renderStats() {
+  el.score.textContent = `${right}/${total}`;
+  el.streak.textContent = streak;
+  const parts = CATS.slice(1).filter(c => stats[c][1] > 0).map(c => `${c} ${stats[c][0]}/${stats[c][1]}`);
+  el.stats.innerHTML = (parts.length ? `<span>${parts.join(' · ')}</span>` : '') + (total ? '<button type="button" id="reset">Zerar placar</button>' : '');
+  const r = $('reset');
+  if (r) r.onclick = () => { right = total = streak = count = 0; CATS.slice(1).forEach(c => stats[c] = [0, 0]); queue = []; renderStats(); next(); };
+}
+
+function next() {
+  count++;
+  const due = queue.findIndex(x => x.due <= count && (cat === 'Tudo' || x.q.cat === cat));
+  if (due >= 0) { cur = queue.splice(due, 1)[0].q; cur.retry = true; }
+  else cur = makeQuestion(cat);
+  answered = false;
+  el.tag.textContent = cur.retry ? `${cur.cat} · você errou esta, tente de novo` : cur.cat;
+  el.q.innerHTML = cur.q + (cur.small ? `<small>${cur.small}</small>` : '');
+  el.unit.textContent = cur.unit;
+  el.ans.value = ''; el.ans.disabled = false;
+  el.hint.classList.add('hidden'); el.fb.classList.add('hidden');
+  el.hintBtn.classList.remove('hidden');
+  el.go.textContent = 'Conferir';
+  el.ans.focus();
+}
+
+function powerOfTenNote(user, correct) {
+  if (!(user > 0)) return '';
+  const k = Math.log10(user / correct);
+  const r = Math.round(k);
+  if (r !== 0 && Math.abs(k - r) < 1e-6) {
+    const n = Math.abs(r);
+    return `Seu número está ${n} ${n === 1 ? 'casa' : 'casas'} ${r > 0 ? 'grande demais' : 'pequeno demais'}. Confira quantas casas a vírgula precisa andar (1.000 = 3 casas).`;
+  }
+  return '';
+}
+
+function check() {
+  const user = parse(el.ans.value);
+  if (isNaN(user)) { el.ans.focus(); return; }
+  const ok = Math.abs(user - cur.ans) <= Math.abs(cur.ans) * 1e-6;
+  answered = true; total++;
+  stats[cur.cat][1]++;
+  if (ok) { right++; streak++; stats[cur.cat][0]++; }
+  else { streak = 0; queue.push({ q: { ...cur, retry: false }, due: count + 3 }); }
+  el.ans.disabled = true;
+  el.hint.classList.add('hidden'); el.hintBtn.classList.add('hidden');
+  const note = ok ? '' : powerOfTenNote(user, cur.ans);
+  el.fb.className = 'fb ' + (ok ? 'ok' : 'bad');
+  el.fb.innerHTML = `<strong>${ok ? 'Certo' : 'Resposta: ' + fmt(cur.ans) + ' ' + cur.unit}</strong>` +
+    `<span class="conta">${cur.why}</span>` + (note ? `<br>${note}` : '');
+  el.go.textContent = 'Próxima';
+  renderStats();
+  el.go.focus();
+}
+
+el.go.onclick = () => answered ? next() : check();
+el.hintBtn.onclick = () => { el.hint.textContent = cur.hint; el.hint.classList.toggle('hidden'); };
+el.ans.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); answered ? next() : check(); } });
+
+renderChips(); renderStats(); next();
+</script>
+</body>
+</html>
